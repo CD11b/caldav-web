@@ -1,6 +1,6 @@
 # CalDAV Web Client
 
-A simple web-based client for viewing CalDAV task data.
+A simple web-based client for viewing CalDAV task data. Highly experimental.
 
 ## Features
 
