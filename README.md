@@ -11,7 +11,7 @@ A simple web-based client for viewing CalDAV task data.
 
 ## Demo
 
-![demo](images/demo.gif)
+![demo](resources/demo.gif)
 
 ## Installation
 
