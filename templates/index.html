@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="A powerful CalDAV-enabled task management application" />
+  <title>CalDAV Task Manager</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  
+  <!-- Preload critical resources -->
+  <link rel="preload" href="{{ url_for('static', filename='scripts.js') }}" as="script">
+</head>
+<body>
+  <!-- Loading indicator -->
+  <div id="loading-indicator" class="loading-overlay" aria-hidden="true">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+      <p>Loading tasks...</p>
+    </div>
+  </div>
+
+  <!-- Main application container -->
+  <div id="container" class="flex-container">
+    <!-- Sidebar -->
+    <aside id="sidebar" role="navigation" aria-label="Task Lists">
+      <header class="sidebar-header">
+        <h2 class="sidebar-title">Task Lists</h2>
+        <button id="refreshCalendarsBtn" class="icon-btn" title="Refresh calendar list" aria-label="Refresh calendar list">
+          🔄
+        </button>
+      </header>
+      
+      <!-- Calendar list with loading state -->
+      <div id="calendarListContainer">
+        <ul id="calendarList" role="list" aria-label="Available calendars"></ul>
+        <div id="calendarListLoading" class="loading-state hidden">
+          <div class="mini-spinner"></div>
+          <span>Loading calendars...</span>
+        </div>
+        <div id="calendarListEmpty" class="empty-state hidden">
+          <p>No calendars found</p>
+          <button id="retryCalendarsBtn" class="btn btn-secondary">Retry</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="main-content" role="main">
+      <!-- Header -->
+      <header class="main-header">
+        <h1>CalDAV Task Manager</h1>
+        
+        <!-- Sync controls with better UX -->
+        <div id="syncControls" class="sync-controls">
+          <button id="syncBtn" class="btn btn-primary" title="Sync with CalDAV server">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Sync with CalDAV</span>
+          </button>
+          <button id="pushPendingBtn" class="btn btn-secondary" title="Push unsynced tasks to server">
+            <span class="btn-icon">📤</span>
+            <span class="btn-text">Push Unsynced Tasks</span>
+          </button>
+          
+          <!-- Sync status indicator -->
+          <div id="syncStatus" class="sync-status" aria-live="polite"></div>
+        </div>
+      </header>
+
+      <!-- Task creation section -->
+      <section class="task-creation-section" aria-labelledby="new-task-heading">
+        <h2 id="new-task-heading" class="section-title">Create New Task</h2>
+        
+        <form id="taskForm" class="task-form" novalidate>
+          <div class="form-row">
+            <div class="form-group flex-grow">
+              <label for="taskTitle" class="sr-only">Task title</label>
+              <input 
+                type="text" 
+                id="taskTitle" 
+                name="title"
+                placeholder="What needs to be done?" 
+                required 
+                autocomplete="off"
+                aria-describedby="taskTitle-error"
+                maxlength="200"
+              />
+              <div id="taskTitle-error" class="error-message" role="alert" aria-live="polite"></div>
+            </div>
+            
+            <div class="form-group flex-grow">
+              <label for="taskDescription" class="sr-only">Task description</label>
+              <input 
+                type="text" 
+                id="taskDescription" 
+                name="description"
+                placeholder="Description (optional)" 
+                autocomplete="off"
+                maxlength="500"
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskDue" class="sr-only">Due date</label>
+              <input 
+                type="text" 
+                id="taskDue" 
+                name="due"
+                placeholder="Due date (optional)"
+                readonly
+              />
+            </div>
+            
+            <div class="form-group">
+              <label for="taskPriority" class="sr-only">Priority level</label>
+              <select id="taskPriority" name="priority" title="Priority level">
+                <option value="">Priority</option>
+                <option value="1">🔴 High</option>
+                <option value="5">🟠 Medium</option>
+                <option value="9">🟢 Low</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary" id="createTaskBtn">
+                <span class="btn-icon">➕</span>
+                <span class="btn-text">Create Task</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Active tasks section -->
+      <section class="tasks-section" aria-labelledby="active-tasks-heading">
+        <div class="section-header">
+          <h2 id="active-tasks-heading" class="section-title">Active Tasks</h2>
+          
+          <!-- Task filters and view options -->
+          <div class="task-controls">
+            <div class="view-options" role="group" aria-label="View options">
+              <button id="listViewBtn" class="view-btn active" title="List view" aria-pressed="true">📋</button>
+              <button id="boardViewBtn" class="view-btn" title="Board view" aria-pressed="false">📊</button>
+            </div>
+            
+            <div class="filter-options">
+              <label for="priorityFilter" class="sr-only">Filter by priority</label>
+              <select id="priorityFilter" class="filter-select" title="Filter by priority">
+                <option value="">All priorities</option>
+                <option value="1">🔴 High only</option>
+                <option value="5">🟠 Medium only</option>
+                <option value="9">🟢 Low only</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task list container with states -->
+        <div id="taskListContainer" class="task-list-container">
+          <div id="taskList" class="task-list" role="list" aria-label="Active tasks"></div>
+          
+          <div id="taskListLoading" class="loading-state hidden">
+            <div class="mini-spinner"></div>
+            <span>Loading tasks...</span>
+          </div>
+          
+          <div id="taskListEmpty" class="empty-state hidden">
+            <div class="empty-illustration">📝</div>
+            <h3>No active tasks</h3>
+            <p>Create your first task above to get started!</p>
+          </div>
+          
+          <div id="taskListError" class="error-state hidden">
+            <div class="error-illustration">⚠️</div>
+            <h3>Failed to load tasks</h3>
+            <p id="taskListErrorMessage"></p>
+            <button id="retryTasksBtn" class="btn btn-secondary">Retry</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Completed tasks section -->
+      <section class="completed-section" aria-labelledby="completed-tasks-heading">
+        <div class="section-header">
+          <h2 id="completed-tasks-heading" class="section-title">
+            <button id="toggleCompletedBtn" class="toggle-btn" aria-expanded="false">
+              <span class="toggle-icon">▶</span>
+              <span class="toggle-text">Completed Tasks</span>
+              <span id="completedCount" class="count-badge">0</span>
+            </button>
+          </h2>
+          
+          <div class="completed-controls hidden" id="completedControls">
+            <button id="clearCompletedBtn" class="btn btn-danger btn-small" title="Clear all completed tasks">
+              🗑️ Clear All
+            </button>
+          </div>
+        </div>
+        
+        <div id="completedTasks" class="task-list completed-tasks hidden" role="list" aria-label="Completed tasks"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Keyboard shortcuts help -->
+  <div id="shortcutsHelp" class="shortcuts-help hidden" role="dialog" aria-labelledby="shortcuts-title" aria-modal="true">
+    <div class="shortcuts-content">
+      <h3 id="shortcuts-title">Keyboard Shortcuts</h3>
+      <dl class="shortcuts-list">
+        <dt>N</dt><dd>Create new task</dd>
+        <dt>S</dt><dd>Sync with CalDAV</dd>
+        <dt>?</dt><dd>Show this help</dd>
+        <dt>Escape</dt><dd>Close dialogs</dd>
+      </dl>
+      <button id="closeShortcutsBtn" class="btn btn-secondary">Close</button>
+    </div>
+  </div>
+
+  <!-- Help button -->
+  <button id="helpBtn" class="help-btn" title="Keyboard shortcuts (Press ?)" aria-label="Show keyboard shortcuts">
+    ?
+  </button>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('static', filename='scripts.js') }}"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <!-- Enhanced JavaScript for new features -->
+  <script>
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        return;
+      }
+
+      switch(e.key.toLowerCase()) {
+        case 'n':
+          e.preventDefault();
+          document.getElementById('taskTitle').focus();
+          break;
+        case 's':
+          e.preventDefault();
+          document.getElementById('syncBtn').click();
+          break;
+        case '?':
+          e.preventDefault();
+          document.getElementById('shortcutsHelp').classList.toggle('hidden');
+          break;
+        case 'escape':
+          document.getElementById('shortcutsHelp').classList.add('hidden');
+          break;
+      }
+    });
+
+    // Help button
+    document.getElementById('helpBtn').addEventListener('click', () => {
+      document.getElementById('shortcutsHelp').classList.toggle('hidden');
+    });
+
+    document.getElementById('closeShortcutsBtn').addEventListener('click', () => {
+      document.getElementById('shortcutsHelp').classList.add('hidden');
+    });
+
+    // Loading states
+    function showLoading(containerId) {
+      const container = document.getElementById(containerId);
+      const loading = container.querySelector('.loading-state');
+      const content = container.querySelector(':not(.loading-state):not(.error-state):not(.empty-state)');
+      
+      if (loading) loading.classList.remove('hidden');
+      if (content) content.style.display = 'none';
+    }
+
+    function hideLoading(containerId) {
+      const container = document.getElementById(containerId);
+      const loading = container.querySelector('.loading-state');
+      const content = container.querySelector(':not(.loading-state):not(.error-state):not(.empty-state)');
+      
+      if (loading) loading.classList.add('hidden');
+      if (content) content.style.display = '';
+    }
+
+    // Form validation
+    document.getElementById('taskForm').addEventListener('input', (e) => {
+      if (e.target.id === 'taskTitle') {
+        const errorDiv = document.getElementById('taskTitle-error');
+        if (e.target.value.trim()) {
+          errorDiv.textContent = '';
+          e.target.classList.remove('error');
+        }
+      }
+    });
+
+    // Enhanced form submission with validation
+    document.getElementById('taskForm').addEventListener('submit', (e) => {
+      const titleInput = document.getElementById('taskTitle');
+      const errorDiv = document.getElementById('taskTitle-error');
+      
+      if (!titleInput.value.trim()) {
+        e.preventDefault();
+        errorDiv.textContent = 'Task title is required';
+        titleInput.classList.add('error');
+        titleInput.focus();
+      }
+    });
+
+    // // View toggle functionality (placeholder for future board view)
+    // document.getElementById('listViewBtn').addEventListener('click', () => {
+    //   document.getElementById('listViewBtn').classList.add('active');
+    //   document.getElementById('boardViewBtn').classList.remove('active');
+    //   document.getElementById('listViewBtn').setAttribute('aria-pressed', 'true');
+    //   document.getElementById('boardViewBtn').setAttribute('aria-pressed', 'false');
+    // });
+
+    // document.getElementById('boardViewBtn').addEventListener('click', () => {
+    //   // Future board view implementation
+    //   console.log('Board view not yet implemented');
+    // });
+
+    // // Priority filter (to be connected to existing scripts.js)
+    // document.getElementById('priorityFilter').addEventListener('change', (e) => {
+    //   // This would filter the task list - to be implemented in scripts.js
+    //   console.log('Filter by priority:', e.target.value);
+    // });
+  </script>
+</body>
+</html>
