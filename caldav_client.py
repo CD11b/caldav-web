@@ -205,7 +205,7 @@ class CalDAVClient:
             if task_data['priority'] is not None:
                 try:
                     priority = int(task_data['priority'])
-                    task_data['priority'] = max(1, min(9, priority))  # Clamp to 1-9 range
+                    task_data['priority'] = max(0, min(9, priority))  # Clamp to 1-9 range
                 except (ValueError, TypeError):
                     task_data['priority'] = None
 
@@ -448,9 +448,9 @@ class CalDAVClient:
         if priority is not None:
             try:
                 priority = int(priority)
-                if not (1 <= priority <= 9):
+                if not (0 <= priority <= 9):
                     logger.warning(f"Priority {priority} out of range, clamping to 1–9")
-                    priority = max(1, min(9, priority))
+                    priority = max(0, min(9, priority))
             except (ValueError, TypeError):
                 logger.warning(f"Invalid priority value: {priority}")
                 priority = None
@@ -645,7 +645,7 @@ class CalDAVClient:
         try:
             # Validate priority range
             priority_int = int(priority_value)
-            priority_int = max(1, min(9, priority_int))
+            priority_int = max(0, min(9, priority_int))
             
             # Remove existing priority property
             if hasattr(vtodo, 'priority'):

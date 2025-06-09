@@ -273,8 +273,8 @@ def create_task(data):
         if priority is not None:
             try:
                 priority = int(priority)
-                if priority < 1 or priority > 9:
-                    return jsonify({"error": "Priority must be between 1 and 9 "}), 400
+                if priority < 0 or priority > 9:
+                    return jsonify({"error": "Priority must be between 0 and 9 "}), 400
             except ValueError:
                 return jsonify({"error": "Priority must be a number"}), 400
         
@@ -395,8 +395,8 @@ def update_task(data, uid):
             new_priority = data['priority']
             if new_priority is not None:
                 new_priority = int(new_priority)
-                if new_priority < 1 or new_priority > 9:
-                    return jsonify({"error": "Priority must be between 1 and 9"}), 400
+                if new_priority < 0 or new_priority > 9:
+                    return jsonify({"error": "Priority must be between 0 and 9"}), 400
             if new_priority != task.priority:
                 task.priority = new_priority
                 changes['priority'] = new_priority

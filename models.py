@@ -61,8 +61,8 @@ class Task(db.Model):
             priority = int(priority)
         except (ValueError, TypeError):
             raise ValueError(f"Priority must be an integer, got {priority} ({type(priority)})")
-        if not (1 <= priority <= 9):
-            raise ValueError("Priority must be between 1 and 9")
+        if not (0 <= priority <= 9):
+            raise ValueError("Priority must be between 0 and 9")
         return priority
 
 

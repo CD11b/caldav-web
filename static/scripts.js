@@ -352,7 +352,7 @@ function createTaskItem(task, allTasks) {
     1: '🔴',    // High
     5: '🟠',    // Medium  
     9: '🟢',    // Low
-    null: '⚪', // None
+    0: '⚪', // None
     undefined: '⚪'
   };
 
@@ -691,7 +691,7 @@ function renderBoardView(topLevelTasks, allTasks, container) {
     { title: '🔴 High Priority', priority: 1, tasks: [] },
     { title: '🟠 Medium Priority', priority: 5, tasks: [] },
     { title: '🟢 Low Priority', priority: 9, tasks: [] },
-    { title: '⚪ No Priority', priority: null, tasks: [] }
+    { title: '⚪ No Priority', priority: 0, tasks: [] }
   ];
   
   // Sort tasks into columns
